@@ -1,4 +1,3 @@
-const fs = require("fs");
 const Fastify = require("fastify");
 const Redis = require("ioredis").Redis;
 const cards = require("./cards.json");
@@ -6,8 +5,24 @@ const cards = require("./cards.json");
 const app = Fastify();
 const port = +process.argv[2] || 3000;
 
+const ALL_CARDS = { id: "ALL CARDS" };
 const client = new Redis();
-app.decorate("redis", client);
+const schema = {
+  response: {
+    200: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+        },
+        name: {
+          type: "string",
+        },
+      },
+      required: ["id"],
+    },
+  },
+};
 
 app.listen({ port }, () => {
   console.log(`Example app listening at http://0.0.0.0:${port}`);
@@ -16,27 +31,11 @@ app.listen({ port }, () => {
 app.get(
   "/card_add",
   {
-    schema: {
-      response: {
-        200: {
-          type: "object",
-          properties: {
-            id: {
-              type: "string",
-            },
-            name: {
-              type: "string",
-            },
-          },
-          required: ["id"],
-        },
-      },
-    },
+    schema,
   },
   async (req, res) => {
-    const key = req.query.id;
-    const currentIndex = await app.redis.incr(key);
-    res.send(cards[currentIndex - 1] || { id: "ALL CARDS" });
+    const currentIndex = await client.incr(req.query.id);
+    res.send(cards[currentIndex - 1] || ALL_CARDS);
   }
 );
 
